@@ -10,8 +10,21 @@
 
 ## Запуск
 
-Генерируем код из `.proto`-файла
+Генерируем код из `.proto`-файла.
 
 ```bash
 protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/user.proto
+```
+
+Запускаем сервер.
+
+```
+go run server/server.go
+```
+
+Запускаем клиент с тестовыми запросами
+
+
+```
+go run client/client.go
 ```
