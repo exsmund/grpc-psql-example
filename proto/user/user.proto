@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package grpc_psql_example.proto.user;
+
+option go_package = "github.com/exsmund/grpc-psql-example/proto/user";
+
+service UserRepo {
+  rpc SaveUser(SaveUserRequest) returns (SaveUserResponse) {}
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {}
+  rpc GetUsers(GetUsersRequest) returns (stream User) {}
+}
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message SaveUserRequest {
+  User data = 1;
+}
+
+message SaveUserResponse {
+  Status status = 1;
+  User data = 2;
+}
+
+message DeleteUserRequest {
+  int32 id = 1;
+}
+
+message DeleteUserResponse {
+  Status status = 1;
+}
+
+enum Status {
+  Success = 0;
+  InternalError = 1;
+  NotFound = 2;
+  NothinToDo = 3;
+  RequestError = 4;
+  Unknown = 5;
+}
+
+message GetUsersRequest {
+}

@@ -10,21 +10,31 @@
 
 ## Запуск
 
-Генерируем код из `.proto`-файла.
+Запускаем базу
 
-```bash
-protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/user.proto
+```
+docker-compose up
 ```
 
 Запускаем сервер.
 
 ```
+cd service/server
 go run server/server.go
 ```
 
-Запускаем клиент с тестовыми запросами
-
+Отдельно запускаем клиент с тестовыми запросами
 
 ```
+cd service/server
 go run client/client.go
+```
+
+## Разработка
+
+
+После изменения `.proto`-файла, генерируем код командой:
+
+```bash
+protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/user/user.proto
 ```
