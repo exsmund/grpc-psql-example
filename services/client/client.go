@@ -38,7 +38,7 @@ func getUsers(c pb.UserRepoClient, ctx context.Context) {
 	log.Printf("Getting users")
 	stream, err := c.GetUsers(ctx, &pb.GetUsersRequest{})
 	if err != nil {
-		log.Fatalf("Could not gt users: %v", err)
+		log.Fatalf("Could not get users: %v", err)
 	}
 	for {
 		u, err := stream.Recv()
@@ -46,7 +46,7 @@ func getUsers(c pb.UserRepoClient, ctx context.Context) {
 			break
 		}
 		if err != nil {
-			log.Fatalf("Could not gt users: %v", err)
+			log.Fatalf("Could not get users: %v", err)
 		}
 		log.Printf("User: %d, %s, %s", u.GetId(), u.GetName(), u.GetEmail())
 	}
@@ -69,12 +69,23 @@ func main() {
 	// Test saving used data
 	u := &pb.User{Name: "Ivan", Email: "example@email1"}
 	u = saveUser(c, ctx, u)
-	// Test saving used data
+
+	log.Print("--------")
+	// If last request was more than a minute ago,
+	// we will recieve all users include last saved.
+	getUsers(c, ctx)
+
+	log.Print("--------")
+	// Test saving used data.
 	u2 := &pb.User{Name: "Vasya", Email: "example@email2"}
 	u2 = saveUser(c, ctx, u2)
 
+	log.Print("--------")
+	// Last user was created less then a minute ago,
+	// so we will not recieve it
 	getUsers(c, ctx)
 
+	log.Print("--------")
 	// Test deleting used by gotten IDs
 	deleteUser(c, ctx, u.Id)
 	deleteUser(c, ctx, u2.Id)

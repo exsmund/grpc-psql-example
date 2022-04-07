@@ -12,3 +12,8 @@ services:
     environment:
        POSTGRES_PASSWORD: example
        POSTGRES_DB: example
+
+  redis:
+    image: 'redis:latest'
+    ports:
+      - "6379:6379"
