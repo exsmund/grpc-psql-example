@@ -23,6 +23,13 @@ cd service/server
 go run server/server.go
 ```
 
+Запускаем сервис для логирования.
+
+```
+cd service/logger
+go run logger/logger.go
+```
+
 Отдельно запускаем клиент с тестовыми запросами
 
 ```

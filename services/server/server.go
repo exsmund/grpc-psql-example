@@ -23,10 +23,18 @@ var (
 	redisaddr = flag.String("redisaddr", "localhost:6379", "The Redis address")
 	redispass = flag.String("redispass", "", "The Redis passwrod")
 	redisdb   = flag.Int("redisdb", 0, "The Redis DB")
+
+	kafkaserver = flag.String("kafkaserver", "localhost:9092", "The Kafka server")
 )
 
 func main() {
 	flag.Parse()
+
+	p, err := NewProducer(*kafkaserver, "log")
+	if err != nil {
+		log.Fatalf("Failed Kafka connection: %v", err)
+	}
+	defer p.Destroy()
 
 	var conninfo string = fmt.Sprintf(
 		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
@@ -40,13 +48,14 @@ func main() {
 
 	redis := connectRedis(*redisaddr, *redispass, *redisdb)
 	fmt.Println("Connected Redis")
+	defer redis.Close()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterUserRepoServer(grpcServer, newServer(db, redis))
+	pb.RegisterUserRepoServer(grpcServer, newServer(db, redis, p))
 	fmt.Println("Start server")
 	grpcServer.Serve(lis)
 }

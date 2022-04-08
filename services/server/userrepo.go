@@ -17,6 +17,7 @@ type userServer struct {
 	pb.UnimplementedUserRepoServer
 	db    *sql.DB
 	redis *redis.Client
+	p     *Producer
 	ctx   context.Context
 }
 
@@ -47,6 +48,7 @@ func (s *userServer) SaveUser(ctx context.Context, req *pb.SaveUserRequest) (*pb
 	}
 	log.Printf("User Id: %v", id)
 	user.Id = id
+	go s.p.Produce(fmt.Sprintf("Created user with id %d, emain %s, name %s", user.Id, user.Email, user.Name))
 	return &pb.SaveUserResponse{Status: pb.Status_Success, Data: user}, nil
 }
 
@@ -141,10 +143,11 @@ func (s *userServer) storeUsersIntoRedis(users *[]StoredUser) {
 	}
 }
 
-func newServer(db *sql.DB, redis *redis.Client) *userServer {
+func newServer(db *sql.DB, redis *redis.Client, p *Producer) *userServer {
 	s := &userServer{
 		db:    db,
 		redis: redis,
+		p:     p,
 		ctx:   context.Background(),
 	}
 	return s
