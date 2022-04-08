@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package grpc_psql_example.proto.logger;
+
+option go_package = "github.com/exsmund/grpc-psql-example/proto/logger";
+
+import "google/protobuf/timestamp.proto";
+
+service LoggerRepo {
+  rpc GetTail(GetTailRequest) returns (stream LogRow) {}
+}
+
+message GetTailRequest {
+}
+
+message LogRow {
+  google.protobuf.Timestamp ts = 1;
+  string msg = 2;
+}

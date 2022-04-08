@@ -44,10 +44,10 @@ func main() {
 		log.Fatalf("Failed DB connection: %v", err)
 	}
 	defer db.Close()
-	fmt.Println("Connected DB")
+	log.Println("Connected DB")
 
 	redis := connectRedis(*redisaddr, *redispass, *redisdb)
-	fmt.Println("Connected Redis")
+	log.Println("Connected Redis")
 	defer redis.Close()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
@@ -56,6 +56,6 @@ func main() {
 	}
 	grpcServer := grpc.NewServer()
 	pb.RegisterUserRepoServer(grpcServer, newServer(db, redis, p))
-	fmt.Println("Start server")
+	log.Printf("Start gRPC server %s", lis.Addr().String())
 	grpcServer.Serve(lis)
 }

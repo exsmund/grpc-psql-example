@@ -17,5 +17,6 @@ require (
 )
 
 replace github.com/exsmund/grpc-psql-example/proto/user v0.0.0-unpublished => ../../proto/user
+replace github.com/exsmund/grpc-psql-example/proto/logger v0.0.0-unpublished => ../../proto/logger
 
 replace github.com/exsmund/grpc-psql-example/proto v0.0.0-unpublished => ../../proto

@@ -10,14 +10,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pb "github.com/exsmund/grpc-psql-example/proto/user"
+	lpb "github.com/exsmund/grpc-psql-example/proto/logger"
+	upb "github.com/exsmund/grpc-psql-example/proto/user"
 )
 
-var addr = flag.String("addr", "localhost:8001", "the address to connect to")
+var serverAddr = flag.String("serveraddr", "localhost:8001", "the address to connect to")
+var loggerAddr = flag.String("addr", "localhost:8002", "the address to connect to")
 
-func saveUser(c pb.UserRepoClient, ctx context.Context, u *pb.User) *pb.User {
+func saveUser(c upb.UserRepoClient, ctx context.Context, u *upb.User) *upb.User {
 	log.Printf("Save User: {%s, %s}\n", u.GetName(), u.GetEmail())
-	saveRes, err := c.SaveUser(ctx, &pb.SaveUserRequest{Data: u})
+	saveRes, err := c.SaveUser(ctx, &upb.SaveUserRequest{Data: u})
 	if err != nil {
 		log.Fatalf("Could not save: %v", err)
 	}
@@ -25,8 +27,8 @@ func saveUser(c pb.UserRepoClient, ctx context.Context, u *pb.User) *pb.User {
 	return saveRes.GetData()
 }
 
-func deleteUser(c pb.UserRepoClient, ctx context.Context, ID int32) {
-	delRes, err := c.DeleteUser(ctx, &pb.DeleteUserRequest{Id: ID})
+func deleteUser(c upb.UserRepoClient, ctx context.Context, ID int32) {
+	delRes, err := c.DeleteUser(ctx, &upb.DeleteUserRequest{Id: ID})
 	log.Printf("Delete user with ID: %d", ID)
 	if err != nil {
 		log.Fatalf("Could not delete: %v", err)
@@ -34,9 +36,9 @@ func deleteUser(c pb.UserRepoClient, ctx context.Context, ID int32) {
 	log.Printf("Status: %s", delRes.GetStatus())
 }
 
-func getUsers(c pb.UserRepoClient, ctx context.Context) {
+func getUsers(c upb.UserRepoClient, ctx context.Context) {
 	log.Printf("Getting users")
-	stream, err := c.GetUsers(ctx, &pb.GetUsersRequest{})
+	stream, err := c.GetUsers(ctx, &upb.GetUsersRequest{})
 	if err != nil {
 		log.Fatalf("Could not get users: %v", err)
 	}
@@ -52,22 +54,39 @@ func getUsers(c pb.UserRepoClient, ctx context.Context) {
 	}
 }
 
+func getLogs(c lpb.LoggerRepoClient, ctx context.Context) {
+	log.Printf("Getting log")
+	stream, err := c.GetTail(ctx, &lpb.GetTailRequest{})
+	if err != nil {
+		log.Fatalf("Could not get log: %v", err)
+	}
+	for {
+		u, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("Could not get log: %v", err)
+		}
+		log.Printf("%s: %s", u.GetTs(), u.GetMsg())
+	}
+}
+
 func main() {
 	flag.Parse()
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	sConn, err := grpc.Dial(*serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
-	defer conn.Close()
-	c := pb.NewUserRepoClient(conn)
-
-	// Contact the server and print out its response.
+	defer sConn.Close()
+	c := upb.NewUserRepoClient(sConn)
+	log.Printf("Connected gRPC %s", *serverAddr)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// Test saving used data
-	u := &pb.User{Name: "Ivan", Email: "example@email1"}
+	u := &upb.User{Name: "Ivan", Email: "example@email1"}
 	u = saveUser(c, ctx, u)
 
 	log.Print("--------")
@@ -77,7 +96,7 @@ func main() {
 
 	log.Print("--------")
 	// Test saving used data.
-	u2 := &pb.User{Name: "Vasya", Email: "example@email2"}
+	u2 := &upb.User{Name: "Vasya", Email: "example@email2"}
 	u2 = saveUser(c, ctx, u2)
 
 	log.Print("--------")
@@ -93,4 +112,19 @@ func main() {
 	// Test deleting used by unknown ID
 	deleteUser(c, ctx, 0)
 
+	log.Print("--------")
+	time.Sleep(time.Second)
+	// Set up a connection to the logger.
+	lConn, err := grpc.Dial(*loggerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer lConn.Close()
+	l := lpb.NewLoggerRepoClient(lConn)
+	log.Printf("Connected gRPC %s", *loggerAddr)
+	// If last request was more than a minute ago,
+	// we will recieve all users include last saved.
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second)
+	defer cancel2()
+	getLogs(l, ctx2)
 }

@@ -40,7 +40,11 @@ func (ch *CH) Write(msg string) error {
 func (ch *CH) Read() (*[]Row, error) {
 	var result []Row
 
-	if err := ch.conn.Select(ch.ctx, &result, "SELECT dt, msg FROM user_creation"); err != nil {
+	if err := ch.conn.Select(
+		ch.ctx,
+		&result,
+		"SELECT dt, msg FROM user_creation ORDER BY dt DESC LIMIT 10",
+	); err != nil {
 		return nil, err
 	}
 	return &result, nil
