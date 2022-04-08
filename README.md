@@ -8,6 +8,12 @@
 5. При добавлении пользователя делать лог в clickHouse
 6. Добавление логов в clickHouse делать через очередь Kafka
 
+## Перед запуском
+Установить:
+- [Golang](https://go.dev/doc/install)
+- [Docker](https://docs.docker.com/get-docker/)
+- gcc ([для Windows](https://jmeubank.github.io/tdm-gcc/download/))
+
 ## Запуск
 
 Запускаем базу

@@ -4,7 +4,7 @@ services:
     image: postgres
     restart: always
     volumes:
-      - ./initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
+      - ./docker/psql/initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
       - ./pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -41,8 +41,21 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
       KAFKA_AUTO_CRETE_TOPIC_ENABLE: 'true'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
-      KAFKA_LOG_DIRS: /tmp/kafka-logs-1
+      # KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      # KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      # KAFKA_LOG_DIRS: /tmp/kafka-logs-1
+
+  ch-server:
+    image: yandex/clickhouse-server
+    ports:
+     - "9000:9000"
+    volumes:
+      - "./docker/ch/init.sql:/docker-entrypoint-initdb.d/init.sql"
+
+  # ch-client:
+  #   image: yandex/clickhouse-client
+  #   command: ['--host', 'ch-server']
+  #   depends_on:
+  #     - ch-server

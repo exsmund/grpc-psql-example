@@ -3,6 +3,7 @@ module github.com/exsmund/grpc-psql-example/services/server
 go 1.18
 
 require (
+	github.com/confluentinc/confluent-kafka-go v1.8.2
 	github.com/exsmund/grpc-psql-example/proto v0.0.0-unpublished
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/lib/pq v1.10.4
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/confluentinc/confluent-kafka-go v1.8.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.18.1 // indirect

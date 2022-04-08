@@ -30,7 +30,7 @@ var (
 func main() {
 	flag.Parse()
 
-	p, err := NewProducer(*kafkaserver, "log")
+	p, err := NewProducer(*kafkaserver, kafkaTopic)
 	if err != nil {
 		log.Fatalf("Failed Kafka connection: %v", err)
 	}

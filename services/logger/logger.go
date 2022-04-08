@@ -3,40 +3,31 @@ package main
 import (
 	"flag"
 	"log"
-
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 var (
-	kafkaserver = flag.String("kafkaserver", "localhost:9092", "The Kafka server")
-	kafkagroup  = flag.String("kafkagroup", "myGroup", "The Kafka group id")
+	kafkaServer = flag.String("kafkaserver", "localhost:9092", "The Kafka server")
+	kafkaGroup  = flag.String("kafkagroup", "myGroup", "The Kafka group id")
+	CHAddr      = flag.String("chaddr", "127.0.0.1:9000", "The Clickhouse address")
+	CHDB        = flag.String("chdb", "log", "The Clickhouse DB")
+	CHUser      = flag.String("chuser", "default", "The Clickhouse user")
+	CHPass      = flag.String("chpass", "", "The Clickhouse password")
 )
 
 func main() {
 	flag.Parse()
 
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": *kafkaserver,
-		"group.id":          *kafkagroup,
-		"auto.offset.reset": "earliest",
-	})
-	log.Print("Start consume Kafka")
-	defer c.Close()
-
+	ch, err := newCH(*CHAddr, *CHDB, *CHUser, *CHPass)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	log.Print("Connect Clickhouse: OK")
 
-	c.SubscribeTopics([]string{"log", "^aRegex.*[Tt]opic"}, nil)
-
-	for {
-		msg, err := c.ReadMessage(-1)
-		if err == nil {
-			log.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
-		} else {
-			// The client will automatically try to recover from all errors.
-			log.Printf("Consumer error: %v (%v)\n", err, msg)
-		}
+	kafka, err := NewConsumer(*kafkaServer, *kafkaGroup, ch)
+	if err != nil {
+		log.Fatal(err)
 	}
-
+	defer kafka.Destroy()
+	log.Print("Start consuming Kafka: OK")
+	kafka.Subscribe(kafkaTopic)
 }
