@@ -10,9 +10,17 @@
 
 ## Перед запуском
 Установить:
-- [Golang](https://go.dev/doc/install)
 - [Docker](https://docs.docker.com/get-docker/)
+- [Go](https://go.dev/doc/install)
+- [gPRC](https://grpc.io/docs/languages/go/quickstart/)
 - gcc ([для Windows](https://jmeubank.github.io/tdm-gcc/download/))
+
+## Быстрый запуск
+
+Команда запускает в докерах все сервисы и выводит результат в консоль
+```bash
+docker-compose -f .\docker-compose-quick.yml up --build
+```
 
 ## Запуск
 

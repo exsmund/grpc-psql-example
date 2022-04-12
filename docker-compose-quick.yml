@@ -1,0 +1,120 @@
+version: '3.7'
+services:
+  postgres:
+    image: postgres
+    container_name: postgres
+    restart: always
+    volumes:
+      - ./docker/psql/initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
+      # - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    logging:
+      driver: none
+    environment:
+       POSTGRES_PASSWORD: example
+       POSTGRES_DB: example
+
+  redis:
+    image: 'redis:latest'
+    container_name: redis
+    ports:
+      - "6379:6379"
+    logging:
+      driver: none
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    logging:
+      driver: none
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    logging:
+      driver: none
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_CREATE_TOPICS: "user_creation:1:1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://broker:29092
+      # KAFKA_AUTO_CRETE_TOPIC_ENABLE: 'true'
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      KAFKA_LOG4J_LOGGERS: "kafka.network=WARN,kafka.producer=WARN,kafka.request.logger=WARN,kafka.controller=WARN,state.change.logger=WARN,kafka.coordinator=WARN,kafka.cluster=WARN,kafka.server=WARN,kafka.common=WARN,kafka.log=WARN"
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: WARN
+
+  clickhouse:
+    image: yandex/clickhouse-server
+    container_name: clickhouse
+    logging:
+      driver: none
+    ports:
+     - "9000:9000"
+    volumes:
+      - "./docker/ch/init.sql:/docker-entrypoint-initdb.d/init.sql"
+
+  ch-client:
+    image: yandex/clickhouse-client
+    command: ['--host', 'clickhouse']
+    depends_on:
+      - clickhouse
+
+  server:
+    build:
+      context: ./
+      dockerfile: ./services/server/Dockerfile
+    container_name: server
+    depends_on:
+      - kafka
+      - postgres
+      - redis
+    ports:
+      - "8001:8001"
+    environment:
+      APP_POSTGRES_HOST: postgres
+      APP_REDIS_ADDRESS: redis:6379
+      APP_KAFKA_SERVER: kafka:9092
+
+  logger:
+    build:
+      context: ./
+      dockerfile: ./services/logger/Dockerfile
+    container_name: logger
+    depends_on:
+      - clickhouse
+      - kafka
+    ports:
+      - "8002:8002"
+    command:
+      - --kafkaserver
+      - kafka:9092
+      - --chaddr
+      - clickhouse:9000
+
+  client:
+    build:
+      context: ./
+      dockerfile: ./services/client/Dockerfile
+    container_name: client
+    depends_on:
+      - server
+      - logger
+    command:
+      - --serveraddr
+      - server:8001
+      - --loggeraddr
+      - logger:8002

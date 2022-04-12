@@ -1,34 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
-	"encoding/gob"
 	"fmt"
 	"log"
-	"time"
 
 	pb "github.com/exsmund/grpc-psql-example/proto/user"
-	"github.com/go-redis/redis"
 )
 
 type userServer struct {
 	pb.UnimplementedUserRepoServer
-	db    *sql.DB
-	redis *redis.Client
-	p     *Producer
+	db    *DBManager
+	redis *RedisManager
+	p     *KafkaProducer
 	ctx   context.Context
-}
-
-type StoredUser struct {
-	Id    int32
-	Name  string
-	Email string
-}
-
-type StoredUsers struct {
-	Users []StoredUser
 }
 
 func (s *userServer) SaveUser(ctx context.Context, req *pb.SaveUserRequest) (*pb.SaveUserResponse, error) {
@@ -42,11 +27,11 @@ func (s *userServer) SaveUser(ctx context.Context, req *pb.SaveUserRequest) (*pb
 		VALUES ($1, $2)
 		RETURNING id
 	`
-	err := s.db.QueryRow(sqlStatement, email, name).Scan(&id)
+	err := s.db.db.QueryRow(sqlStatement, email, name).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("Failed user saving: %v", err)
 	}
-	log.Printf("User Id: %v", id)
+	log.Printf("Created User Id: %v", id)
 	user.Id = id
 	go s.p.Produce(fmt.Sprintf("Created user with id %d, emain %s, name %s", user.Id, user.Email, user.Name))
 	return &pb.SaveUserResponse{Status: pb.Status_Success, Data: user}, nil
@@ -61,7 +46,7 @@ func (s *userServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 	sqlStatement := `
 		DELETE FROM users
 		WHERE id = $1;`
-	res, err := s.db.Exec(sqlStatement, id)
+	res, err := s.db.db.Exec(sqlStatement, id)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +61,7 @@ func (s *userServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 }
 
 func (s *userServer) GetUsers(req *pb.GetUsersRequest, stream pb.UserRepo_GetUsersServer) error {
-	redisUsers, ok := s.getUsersFromRedis()
+	redisUsers, ok := s.redis.getUsersFromRedis()
 	if ok {
 		log.Print("Retrieve users from Redis")
 		for _, u := range *redisUsers {
@@ -86,7 +71,7 @@ func (s *userServer) GetUsers(req *pb.GetUsersRequest, stream pb.UserRepo_GetUse
 	}
 
 	log.Print("Retrieve users from DB")
-	rows, err := s.db.Query("SELECT id, email, name FROM users")
+	rows, err := s.db.db.Query("SELECT id, email, name FROM users")
 	if err != nil {
 		return err
 	}
@@ -107,43 +92,12 @@ func (s *userServer) GetUsers(req *pb.GetUsersRequest, stream pb.UserRepo_GetUse
 	}
 
 	log.Print("Store to Redis")
-	s.storeUsersIntoRedis(&users)
+	s.redis.storeUsersIntoRedis(&users)
 
 	return nil
 }
 
-func (s *userServer) getUsersFromRedis() (*[]StoredUser, bool) {
-	fromRedis, err := s.redis.Get(redisUsersKey).Bytes()
-	if err == nil {
-		buf := bytes.NewBuffer([]byte(fromRedis))
-		dec := gob.NewDecoder(buf)
-		var s StoredUsers
-		err = dec.Decode(&s)
-		if err == nil {
-			return &s.Users, true
-		} else {
-			log.Printf("Error: getting users from Redis: %s", err)
-		}
-	}
-	return nil, false
-}
-
-func (s *userServer) storeUsersIntoRedis(users *[]StoredUser) {
-	forRedis := &StoredUsers{Users: *users}
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(forRedis)
-	if err == nil {
-		err = s.redis.Set(redisUsersKey, buf.Bytes(), time.Minute).Err()
-		if err != nil {
-			log.Printf("Error: storing users into Redis: %s", err)
-		}
-	} else {
-		log.Printf("Error: storing users into Redis: %s", err)
-	}
-}
-
-func newServer(db *sql.DB, redis *redis.Client, p *Producer) *userServer {
+func newServer(db *DBManager, redis *RedisManager, p *KafkaProducer) *userServer {
 	s := &userServer{
 		db:    db,
 		redis: redis,

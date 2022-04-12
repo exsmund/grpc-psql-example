@@ -5,7 +5,7 @@ services:
     restart: always
     volumes:
       - ./docker/psql/initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
-      - ./pgdata:/var/lib/postgresql/data
+      # - ./pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     environment:

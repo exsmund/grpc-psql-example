@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"google.golang.org/grpc"
 
+	"github.com/exsmund/grpc-psql-example/packages/color"
 	lpb "github.com/exsmund/grpc-psql-example/proto/logger"
 )
 
@@ -24,35 +26,56 @@ var (
 func main() {
 	flag.Parse()
 
-	ch, err := newCH(*CHAddr, *CHDB, *CHUser, *CHPass)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Print("Connect Clickhouse: OK")
-	rows, err := ch.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, r := range *rows {
-		log.Print(r)
+	var wg sync.WaitGroup
+
+	ch := &CH{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ch.Connect(*CHAddr, *CHDB, *CHUser, *CHPass)
+	}()
+
+	kafka := &KafkaConsumer{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		kafka.Connect(*kafkaServer, *kafkaGroup, ch, kafkaTopic)
+	}()
+
+	wg.Wait()
+
+	if ch.ok {
+		log.Println("Connection to the Clickhouse: " + color.Green + "done" + color.Reset)
+		defer ch.Close()
+	} else {
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed Clickhouse connection (%s:%d)", CHAddr)
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
+	if kafka.ok {
+		log.Println("Connection to the Kafka: " + color.Green + "done" + color.Reset)
+		defer kafka.Close()
+		log.Print("Starting consuming Kafka: " + color.Green + "done" + color.Reset)
+		go kafka.Listen()
+	} else {
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed Kafka connection (%s)", *kafkaServer)
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	defer lis.Close()
 	grpcServer := grpc.NewServer()
 	lpb.RegisterLoggerRepoServer(grpcServer, newServer(ch))
-	log.Printf("Start gRPC server %s", lis.Addr().String())
+	log.Printf("Start gRPC server %s "+color.Green+"done"+color.Reset, lis.Addr().String())
 	defer grpcServer.Stop()
-	go grpcServer.Serve(lis)
+	grpcServer.Serve(lis)
 
-	kafka, err := NewConsumer(*kafkaServer, *kafkaGroup, ch)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer kafka.Destroy()
-	log.Print("Start consuming Kafka: OK")
-	kafka.Subscribe(kafkaTopic)
+	// kafka, err := NewConsumer(*kafkaServer, *kafkaGroup, ch)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer kafka.Destroy()
+	// log.Print("Start consuming Kafka: OK")
+	// kafka.Subscribe(kafkaTopic)
 }
