@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LoggerRepoClient interface {
-	GetTail(ctx context.Context, in *GetTailRequest, opts ...grpc.CallOption) (LoggerRepo_GetTailClient, error)
+	GetTail(ctx context.Context, in *GetTailRequest, opts ...grpc.CallOption) (*Log, error)
 }
 
 type loggerRepoClient struct {
@@ -29,43 +29,20 @@ func NewLoggerRepoClient(cc grpc.ClientConnInterface) LoggerRepoClient {
 	return &loggerRepoClient{cc}
 }
 
-func (c *loggerRepoClient) GetTail(ctx context.Context, in *GetTailRequest, opts ...grpc.CallOption) (LoggerRepo_GetTailClient, error) {
-	stream, err := c.cc.NewStream(ctx, &LoggerRepo_ServiceDesc.Streams[0], "/grpc_psql_example.proto.logger.LoggerRepo/GetTail", opts...)
+func (c *loggerRepoClient) GetTail(ctx context.Context, in *GetTailRequest, opts ...grpc.CallOption) (*Log, error) {
+	out := new(Log)
+	err := c.cc.Invoke(ctx, "/grpc_psql_example.proto.logger.LoggerRepo/GetTail", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &loggerRepoGetTailClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type LoggerRepo_GetTailClient interface {
-	Recv() (*LogRow, error)
-	grpc.ClientStream
-}
-
-type loggerRepoGetTailClient struct {
-	grpc.ClientStream
-}
-
-func (x *loggerRepoGetTailClient) Recv() (*LogRow, error) {
-	m := new(LogRow)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 // LoggerRepoServer is the server API for LoggerRepo service.
 // All implementations must embed UnimplementedLoggerRepoServer
 // for forward compatibility
 type LoggerRepoServer interface {
-	GetTail(*GetTailRequest, LoggerRepo_GetTailServer) error
+	GetTail(context.Context, *GetTailRequest) (*Log, error)
 	mustEmbedUnimplementedLoggerRepoServer()
 }
 
@@ -73,8 +50,8 @@ type LoggerRepoServer interface {
 type UnimplementedLoggerRepoServer struct {
 }
 
-func (UnimplementedLoggerRepoServer) GetTail(*GetTailRequest, LoggerRepo_GetTailServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetTail not implemented")
+func (UnimplementedLoggerRepoServer) GetTail(context.Context, *GetTailRequest) (*Log, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTail not implemented")
 }
 func (UnimplementedLoggerRepoServer) mustEmbedUnimplementedLoggerRepoServer() {}
 
@@ -89,25 +66,22 @@ func RegisterLoggerRepoServer(s grpc.ServiceRegistrar, srv LoggerRepoServer) {
 	s.RegisterService(&LoggerRepo_ServiceDesc, srv)
 }
 
-func _LoggerRepo_GetTail_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetTailRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _LoggerRepo_GetTail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(LoggerRepoServer).GetTail(m, &loggerRepoGetTailServer{stream})
-}
-
-type LoggerRepo_GetTailServer interface {
-	Send(*LogRow) error
-	grpc.ServerStream
-}
-
-type loggerRepoGetTailServer struct {
-	grpc.ServerStream
-}
-
-func (x *loggerRepoGetTailServer) Send(m *LogRow) error {
-	return x.ServerStream.SendMsg(m)
+	if interceptor == nil {
+		return srv.(LoggerRepoServer).GetTail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/grpc_psql_example.proto.logger.LoggerRepo/GetTail",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoggerRepoServer).GetTail(ctx, req.(*GetTailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 // LoggerRepo_ServiceDesc is the grpc.ServiceDesc for LoggerRepo service.
@@ -116,13 +90,12 @@ func (x *loggerRepoGetTailServer) Send(m *LogRow) error {
 var LoggerRepo_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "grpc_psql_example.proto.logger.LoggerRepo",
 	HandlerType: (*LoggerRepoServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "GetTail",
-			Handler:       _LoggerRepo_GetTail_Handler,
-			ServerStreams: true,
+			MethodName: "GetTail",
+			Handler:    _LoggerRepo_GetTail_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/logger/logger.proto",
 }

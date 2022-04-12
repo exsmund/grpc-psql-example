@@ -56,19 +56,12 @@ func getUsers(c upb.UserRepoClient, ctx context.Context) {
 
 func getLogs(c lpb.LoggerRepoClient, ctx context.Context) {
 	log.Printf("Getting log")
-	stream, err := c.GetTail(ctx, &lpb.GetTailRequest{})
+	logs, err := c.GetTail(ctx, &lpb.GetTailRequest{})
 	if err != nil {
 		log.Fatalf("Could not get log: %v", err)
 	}
-	for {
-		u, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("Could not get log: %v", err)
-		}
-		log.Printf("%s: %s", u.GetTs(), u.GetMsg())
+	for _, row := range logs.Logs {
+		log.Printf("%s: %s", row.GetTs(), row.GetMsg())
 	}
 }
 

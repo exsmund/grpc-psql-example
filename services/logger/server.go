@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	lpb "github.com/exsmund/grpc-psql-example/proto/logger"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -10,16 +12,17 @@ type loggerServer struct {
 	ch *CH
 }
 
-func (s *loggerServer) GetTail(req *lpb.GetTailRequest, stream lpb.LoggerRepo_GetTailServer) error {
+func (s *loggerServer) GetTail(ctx context.Context, req *lpb.GetTailRequest) (*lpb.Log, error) {
 	rows, err := s.ch.Read()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, r := range *rows {
-		stream.Send(&lpb.LogRow{Ts: timestamppb.New(r.Dt), Msg: r.Msg})
+	result := make([]*lpb.LogRow, len(*rows))
+	for i, r := range *rows {
+		result[i] = &lpb.LogRow{Ts: timestamppb.New(r.Dt), Msg: r.Msg}
 	}
 
-	return nil
+	return &lpb.Log{Logs: result}, nil
 }
 
 func newServer(ch *CH) *loggerServer {

@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.0.12
+	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/confluentinc/confluent-kafka-go v1.8.2
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/lib/pq v1.10.5
@@ -12,7 +13,6 @@ require (
 )
 
 require (
-	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
