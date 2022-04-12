@@ -29,9 +29,9 @@ func (k *KafkaConsumer) Connect(server, kafkagroup string, ch *CH, topic string)
 	k.ch = ch
 
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": server,
-		"group.id":          kafkagroup,
-		"auto.offset.reset": "earliest",
+		"bootstrap.servers":  server,
+		"group.id":           kafkagroup,
+		"enable.auto.commit": "false",
 	})
 	if err != nil {
 		return
@@ -83,12 +83,20 @@ func (k *KafkaConsumer) Listen() {
 	for {
 		msg, err := k.c.ReadMessage(-1)
 		if err == nil {
-			log.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
-			k.ch.Write(string(msg.Value))
+			k.handleMsg(msg)
 		} else {
 			// The client will automatically try to recover from all errors.
 			log.Printf("Consumer error: %v (%v)\n", err, msg)
 		}
+	}
+}
+
+func (k *KafkaConsumer) handleMsg(msg *kafka.Message) {
+	log.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
+	err := k.ch.Write(string(msg.Value))
+	if err == nil {
+		log.Printf("Commit the Message")
+		k.c.CommitMessage(msg)
 	}
 }
 

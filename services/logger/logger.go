@@ -16,7 +16,7 @@ import (
 var (
 	port        = flag.Int("port", 8002, "The server port")
 	kafkaServer = flag.String("kafkaserver", "localhost:9092", "The Kafka server")
-	kafkaGroup  = flag.String("kafkagroup", "myGroup", "The Kafka group id")
+	kafkaGroup  = flag.String("kafkagroup", "loggers", "The Kafka group id")
 	CHAddr      = flag.String("chaddr", "127.0.0.1:9000", "The Clickhouse address")
 	CHDB        = flag.String("chdb", "log", "The Clickhouse DB")
 	CHUser      = flag.String("chuser", "default", "The Clickhouse user")
@@ -48,7 +48,7 @@ func main() {
 		log.Println("Connection to the Clickhouse: " + color.Green + "done" + color.Reset)
 		defer ch.Close()
 	} else {
-		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed Clickhouse connection (%s:%d)", CHAddr)
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed Clickhouse connection (%s)", CHAddr)
 	}
 
 	if kafka.ok {

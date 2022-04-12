@@ -24,6 +24,10 @@ type Row struct {
 }
 
 func (ch *CH) Write(msg string) error {
+	if ch.conn == nil {
+		return errors.New("Connection to the Clickhouse is closed")
+	}
+
 	batch, err := ch.conn.PrepareBatch(ch.ctx, "INSERT INTO user_creation (dt, msg)")
 	if err != nil {
 		return err
@@ -40,6 +44,9 @@ func (ch *CH) Write(msg string) error {
 }
 
 func (ch *CH) Read() (*[]Row, error) {
+	if ch.conn == nil {
+		return nil, errors.New("Connection to the Clickhouse is closed")
+	}
 	var result []Row
 
 	if err := ch.conn.Select(
