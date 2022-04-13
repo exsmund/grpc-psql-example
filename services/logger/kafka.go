@@ -6,13 +6,21 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/exsmund/grpc-psql-example/packages/color"
 )
 
+type KafkaMessage struct {
+	msg string
+	ts  time.Time
+}
+
 type KafkaConsumer struct {
-	ok    bool
-	c     *kafka.Consumer
-	topic string
-	ch    *CH
+	ok          bool
+	c           *kafka.Consumer
+	topic       string
+	ch          *CH
+	batch       []KafkaMessage
+	batchMaxLen int
 }
 
 func (c *KafkaConsumer) Destroy() {
@@ -29,11 +37,20 @@ func (k *KafkaConsumer) Connect(server, kafkagroup string, ch *CH, topic string)
 	k.ch = ch
 
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers":  server,
-		"group.id":           kafkagroup,
+		// https://kafka.apache.org/documentation.html#consumerconfigs
+		"bootstrap.servers": server,
+		"group.id":          kafkagroup,
+		// We will commit after writing to the Clickhouse
 		"enable.auto.commit": "false",
+		// After at least 500 ms, the consumer will receive messages
+		"fetch.wait.max.ms": "500",
+		// The broker will hold on to the fetch until enough data is available (at least 50 bytes)
+		"fetch.min.bytes": "50",
+		// Receive all old messages if it's possible
+		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed Kafka connection: %s", err)
 		return
 	}
 
@@ -41,11 +58,13 @@ func (k *KafkaConsumer) Connect(server, kafkagroup string, ch *CH, topic string)
 
 	err = k.createTopic(topic)
 	if err != nil {
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed topic creation: %s", err)
 		return
 	}
 
 	err = k.c.SubscribeTopics([]string{topic}, nil)
 	if err != nil {
+		log.Fatalf(color.Red+"ERROR"+color.Reset+": Failed topic subcription: %s", err)
 		return
 	}
 
@@ -93,13 +112,24 @@ func (k *KafkaConsumer) Listen() {
 
 func (k *KafkaConsumer) handleMsg(msg *kafka.Message) {
 	log.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
-	err := k.ch.Write(string(msg.Value))
-	if err == nil {
-		log.Printf("Commit the Message")
-		k.c.CommitMessage(msg)
+	k.batch = append(k.batch, KafkaMessage{string(msg.Value), time.Now()})
+	if len(k.batch) >= k.batchMaxLen {
+		err := k.ch.Write(k.batch)
+		if err == nil {
+			k.batch = make([]KafkaMessage, 0)
+			log.Printf("Commit the Message")
+			k.c.CommitMessage(msg)
+		}
 	}
 }
 
 func (k *KafkaConsumer) Close() {
 	k.c.Close()
+}
+
+func NewKafkaConsumer(batchMaxLen int) *KafkaConsumer {
+	k := &KafkaConsumer{
+		batchMaxLen: batchMaxLen,
+	}
+	return k
 }

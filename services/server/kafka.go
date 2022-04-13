@@ -25,7 +25,10 @@ func (k *KafkaProducer) Connect(conf *KafkaConfig) {
 	k.topic = conf.topic
 	k.flush = 1000
 
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": conf.server})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": conf.server,
+		"acks":              0, //  The producer will not wait for any acknowledgment from the server at all
+	})
 	if err != nil {
 		return
 	}

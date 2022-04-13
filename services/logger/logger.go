@@ -35,7 +35,7 @@ func main() {
 		ch.Connect(*CHAddr, *CHDB, *CHUser, *CHPass)
 	}()
 
-	kafka := &KafkaConsumer{}
+	kafka := NewKafkaConsumer(2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

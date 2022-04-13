@@ -23,7 +23,7 @@ type Row struct {
 	Msg string    `ch:"msg"`
 }
 
-func (ch *CH) Write(msg string) error {
+func (ch *CH) Write(msgs []KafkaMessage) error {
 	if ch.conn == nil {
 		return errors.New("Connection to the Clickhouse is closed")
 	}
@@ -32,14 +32,15 @@ func (ch *CH) Write(msg string) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < 1; i++ {
-		if err := batch.Append(time.Now(), msg); err != nil {
+	for _, msg := range msgs {
+		if err := batch.Append(msg.ts, msg.msg); err != nil {
 			return err
 		}
 	}
 	if err := batch.Send(); err != nil {
 		return err
 	}
+	log.Printf("Writing to the Clickhouse %d messages", len(msgs))
 	return nil
 }
 
